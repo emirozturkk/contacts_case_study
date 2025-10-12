@@ -148,8 +148,6 @@ class HomeScreenNotifier extends Notifier<List<MyContact>> {
       ref
           .read(snackbarProvider.notifier)
           .showInfo('Please give permission to access your phone contacts');
-      //throw exception here, it will be handled in the contact screen
-      throw Exception(e);
     }
   }
 

@@ -117,12 +117,14 @@ class _AddOrEditContactBottomSheetState
                 profileImageUrl ?? "",
               );
 
-          // Show the "All Done" overlay
           await showDialog(
             context: context,
             barrierDismissible: false,
-            barrierColor: Colors.transparent,
-            builder: (context) => AllDone(message: 'New contact saved 🎉'),
+            useSafeArea: false,
+            builder: (context) => Material(
+              color: Colors.white,
+              child: AllDone(message: 'New contact saved 🎉'),
+            ),
           );
         }
       } catch (e) {

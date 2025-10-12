@@ -25,7 +25,9 @@ class UserCardWidget extends ConsumerWidget {
         child: Container(
           height: MediaQuery.of(context).size.height * 0.9,
           color: Colors.white,
-          child: AppSnackbarOverlay(child: ContactScreen(contact: contact)),
+          child: AppSnackbarOverlay(
+            child: ContactScreen(contactId: contact.id),
+          ),
         ),
       ),
     );

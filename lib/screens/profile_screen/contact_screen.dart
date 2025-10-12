@@ -8,57 +8,47 @@ import 'package:contacts/providers/home_screen/home_screen_provider.dart';
 import 'package:contacts/screens/home_screen/widgets/common/profile_image_widget.dart';
 
 class ContactScreen extends ConsumerStatefulWidget {
-  final MyContact contact;
+  // Since the state is managed by home screen provider, we need to pass the contact id to the contact screen
+  final String contactId;
 
-  const ContactScreen({super.key, required this.contact});
+  const ContactScreen({super.key, required this.contactId});
 
   @override
   ConsumerState<ContactScreen> createState() => _ContactScreenState();
 }
 
 class _ContactScreenState extends ConsumerState<ContactScreen> {
-  late bool isExistInPhoneContacts;
-  late String profileImageUrl;
-
   @override
   void initState() {
     super.initState();
-    isExistInPhoneContacts = widget.contact.contact != null;
-    profileImageUrl = widget.contact.profileImageUrl;
   }
 
-  void _showPhotoSourceBottomSheet() {
+  void _showPhotoSourceBottomSheet(MyContact currentContact) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (context) => AppSnackbarOverlay(
         child: PhotoSourceBottomSheet(
           onCameraSelected: () async {
-            final newProfileImageUrl = await ref
+            await ref
                 .read(homeScreenProvider.notifier)
-                .immediateUpdateCameraSelected(widget.contact);
-            if (newProfileImageUrl != null) {
-              setState(() {
-                profileImageUrl = newProfileImageUrl;
-              });
-            }
+                .immediateUpdateCameraSelected(currentContact);
           },
           onGallerySelected: () async {
-            final newProfileImageUrl = await ref
+            await ref
                 .read(homeScreenProvider.notifier)
-                .immediateUpdateGallerySelected(widget.contact);
-            if (newProfileImageUrl != null) {
-              setState(() {
-                profileImageUrl = newProfileImageUrl;
-              });
-            }
+                .immediateUpdateGallerySelected(currentContact);
           },
         ),
       ),
     );
   }
 
-  void _showOptionsMenu(BuildContext context, Offset position) {
+  void _showOptionsMenu(
+    BuildContext context,
+    Offset position,
+    MyContact currentContact,
+  ) {
     showMenu<String>(
       context: context,
       position: RelativeRect.fromLTRB(
@@ -108,14 +98,14 @@ class _ContactScreenState extends ConsumerState<ContactScreen> {
       ],
     ).then((value) {
       if (value == 'edit') {
-        _showEditContact();
+        _showEditContact(currentContact);
       } else if (value == 'delete') {
-        _deleteContact();
+        _deleteContact(currentContact);
       }
     });
   }
 
-  void _showEditContact() {
+  void _showEditContact(MyContact currentContact) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -129,21 +119,21 @@ class _ContactScreenState extends ConsumerState<ContactScreen> {
           height: MediaQuery.of(context).size.height * 0.9,
           color: Colors.white,
           child: AppSnackbarOverlay(
-            child: AddOrEditContactBottomSheet(contact: widget.contact),
+            child: AddOrEditContactBottomSheet(contact: currentContact),
           ),
         ),
       ),
     );
   }
 
-  Future<void> _deleteContact() async {
+  Future<void> _deleteContact(MyContact currentContact) async {
     // Show confirmation dialog
     final shouldDelete = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Contact'),
         content: Text(
-          'Are you sure you want to delete ${widget.contact.firstName} ${widget.contact.lastName}?',
+          'Are you sure you want to delete ${currentContact.firstName} ${currentContact.lastName}?',
         ),
         actions: [
           TextButton(
@@ -162,30 +152,40 @@ class _ContactScreenState extends ConsumerState<ContactScreen> {
     if (shouldDelete == true && mounted) {
       await ref
           .read(homeScreenProvider.notifier)
-          .deleteContact(widget.contact.id);
-      if (mounted) {
-        Navigator.pop(context); // Close contact detail screen
-      }
+          .deleteContact(currentContact.id);
     }
   }
 
-  Future<void> _saveToPhoneContacts() async {
-    try {
-      await ref
-          .read(homeScreenProvider.notifier)
-          .saveContactToPhoneContacts(widget.contact);
-      setState(() {
-        isExistInPhoneContacts = true;
-      });
-    } catch (e) {
-      setState(() {
-        isExistInPhoneContacts = false;
-      });
-    }
+  Future<void> _saveToPhoneContacts(MyContact currentContact) async {
+    await ref
+        .read(homeScreenProvider.notifier)
+        .saveContactToPhoneContacts(currentContact);
   }
 
   @override
   Widget build(BuildContext context) {
+    final contacts = ref.watch(homeScreenProvider);
+
+    // Get current contact from provider state
+    final currentContact = contacts.cast<MyContact?>().firstWhere(
+      (contact) => contact?.id == widget.contactId,
+      orElse: () => null,
+    );
+
+    // If contact is deleted from provider, show empty state or close
+    if (currentContact == null) {
+      // Contact was deleted, close this screen
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          Navigator.pop(context);
+        }
+      });
+      return Container(); // Return empty container while closing
+    }
+
+    final profileImageUrl = currentContact.profileImageUrl;
+    final isExistInPhoneContacts = currentContact.contact != null;
+
     return Container(
       decoration: const BoxDecoration(
         color: Colors.white,
@@ -218,7 +218,7 @@ class _ContactScreenState extends ConsumerState<ContactScreen> {
                             Offset(button.size.width, 50),
                             ancestor: overlay,
                           );
-                          _showOptionsMenu(context, position);
+                          _showOptionsMenu(context, position, currentContact);
                         },
                       );
                     },
@@ -249,7 +249,7 @@ class _ContactScreenState extends ConsumerState<ContactScreen> {
                     imageUrl: profileImageUrl,
                     size: 150,
                     iconSize: 50,
-                    firstName: widget.contact.firstName,
+                    firstName: currentContact.firstName,
                     isCached: true,
                     imageFile: null,
                   ),
@@ -260,7 +260,7 @@ class _ContactScreenState extends ConsumerState<ContactScreen> {
 
               // Change Photo button
               TextButton(
-                onPressed: _showPhotoSourceBottomSheet,
+                onPressed: () => _showPhotoSourceBottomSheet(currentContact),
                 child: const Text(
                   'Change Photo',
                   style: TextStyle(color: Color(0xFF007AFF), fontSize: 16),
@@ -284,7 +284,7 @@ class _ContactScreenState extends ConsumerState<ContactScreen> {
                   children: [
                     Expanded(
                       child: Text(
-                        widget.contact.firstName,
+                        currentContact.firstName,
                         style: const TextStyle(
                           fontSize: 16,
                           color: Colors.black,
@@ -312,7 +312,7 @@ class _ContactScreenState extends ConsumerState<ContactScreen> {
                   children: [
                     Expanded(
                       child: Text(
-                        widget.contact.lastName,
+                        currentContact.lastName,
                         style: const TextStyle(
                           fontSize: 16,
                           color: Colors.black,
@@ -340,7 +340,7 @@ class _ContactScreenState extends ConsumerState<ContactScreen> {
                   children: [
                     Expanded(
                       child: Text(
-                        widget.contact.phoneNumber,
+                        currentContact.phoneNumber,
                         style: const TextStyle(
                           fontSize: 16,
                           color: Colors.black,
@@ -361,7 +361,7 @@ class _ContactScreenState extends ConsumerState<ContactScreen> {
                   child: OutlinedButton(
                     onPressed: isExistInPhoneContacts
                         ? null
-                        : _saveToPhoneContacts,
+                        : () => _saveToPhoneContacts(currentContact),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       side: BorderSide(

@@ -1,6 +1,6 @@
 # Welcome
 
-Welcome to the Flutter Contacts Case Study. This is a case study that shows how to build a contacts app using Flutter.
+Welcome to the Flutter Contacts project. This is a contacts app using Flutter.
 
 ## Getting Started
 

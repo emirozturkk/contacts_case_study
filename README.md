@@ -1,6 +1,6 @@
 # Welcome
 
-Welcome to the Flutter Contacts project. This is a contacts app using Flutter.
+Welcome to the Flutter Contacts project.
 
 ## Getting Started
 
